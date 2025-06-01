@@ -1,81 +1,168 @@
 import { useNavigation } from "expo-router";
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import {View,Text,TextInput,StyleSheet,Alert,TouchableOpacity,ActivityIndicator,Image,KeyboardAvoidingView,Platform,ScrollView} from "react-native";
 import { useEffect, useState } from "react";
 import RegisterScreen from "./RegisterScreen";
+import MainScreen from "./MainScreen";
+import { supabase } from "../supabaseClient";
 
 export default function LoginScreen() {
-    const navigation = useNavigation();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+
     const [showRegister, setShowRegister] = useState(false);
+    const [showMain, setShowMain] = useState(false);
+
+    const navigation = useNavigation();
 
     useEffect(() => {
         navigation.setOptions({ headerShown: false });
     }, [navigation]);
 
-    if (showRegister){
-        return <RegisterScreen onClose={() => setShowRegister(false)} />
+    const handleLogin = async () => {
+        setErrorMessage("");
+
+        if (!email || !password) {
+            setErrorMessage("Por favor, introduce tu email y contraseña.");
+            return;
+        }
+
+        setLoading(true);
+
+        const { data, error } = await supabase
+            .from("USERS")
+            .select("*")
+            .eq("email", email)
+            .eq("password", password)
+            .single();
+
+        setLoading(false);
+
+        if (error || !data) {
+            setErrorMessage("Email o contraseña incorrectos.");
+        } else {
+            setShowMain(true);
+        }
+    };
+
+    if (showRegister) {    
+        return <RegisterScreen onClose={() => setShowRegister(false)} />;
+    }
+
+    if (showMain) {        
+        return <MainScreen onLogout={() => setShowMain(false)} />;
     }
 
     return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Sign in</Text>  
-          <TextInput 
-            style={styles.input}
-            placeholder="admin@mail.com" 
-          />
-          <TextInput
-            style={styles.input} 
-            placeholder="**********" 
-            secureTextEntry 
-          />
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <Image style={styles.logo} source={require("../assets/images/login.png")} />
+                <Text style={styles.title}>Bienvenido</Text>
+                <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
 
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Login</Text>  
-          </TouchableOpacity>
+                <TextInput
+                    style={styles.input}
+                    placeholder="📧 Correo electrónico"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                />
 
-          <TouchableOpacity onPress={() => setShowRegister(true)}>
-            <Text style={styles.link}>Sign up</Text>  
-          </TouchableOpacity>
-        </View>
+                <TextInput
+                    style={styles.input}
+                    placeholder="🔒 Contraseña"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                />
+
+                {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+
+                <TouchableOpacity
+                    style={[styles.button, loading && { opacity: 0.6 }]}
+                    onPress={handleLogin}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <Text style={styles.buttonText}>Iniciar sesión</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setShowRegister(true)}>
+                    <Text style={styles.link}>¿No tienes cuenta? Regístrate</Text>
+                </TouchableOpacity>
+            </KeyboardAvoidingView>
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
+    scrollContainer: {
+        flexGrow: 1,
+        backgroundColor: "#f7fdfc",
         justifyContent: "center",
+    },
+    container: {
         alignItems: "center",
-        backgroundColor: "#F0F0F0"
+        paddingHorizontal: 30,
+        paddingVertical: 40,
+    },
+    logo: {
+        width: 200,
+        height: 100,
+        resizeMode: "contain",
+        marginBottom: 30,
+        borderRadius: 10,
     },
     title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        marginBottom: 20
+        fontSize: 26,
+        fontWeight: "700",
+        color: "#2b6777",
+        marginBottom: 6,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: "#555",
+        marginBottom: 30,
     },
     input: {
-        width: "80%",
-        padding: 10,
-        marginVertical: 10,
+        width: "100%",
+        padding: 12,
+        marginBottom: 15,
         backgroundColor: "white",
-        borderRadius: 5,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: "#ccc"    
+        borderColor: "#cbd5e0",
     },
     button: {
-        marginTop: 20,
-        backgroundColor: "#007bff",
-        padding: 10,
-        borderRadius: 5,
-        width: "80%",
-        alignItems: "center"
+        backgroundColor: "#52ab98", // Verde consistente con Register
+        paddingVertical: 14,
+        borderRadius: 8,
+        width: "100%",
+        alignItems: "center",
+        marginTop: 10,
     },
     buttonText: {
         color: "white",
-        fontSize: 14,
-        fontWeight: "bold"
+        fontSize: 16,
+        fontWeight: "bold",
     },
     link: {
-        marginTop: 10,
-        color: "blue",
-        textDecorationLine: "underline"
+        marginTop: 20,
+        color: "#2b6777",
+        textDecorationLine: "underline",
+        fontSize: 14,
+    },
+    error: {
+        color: "red",
+        marginBottom: 10,
+        textAlign: "center",
     },
 });
